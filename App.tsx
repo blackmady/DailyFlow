@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Task, TaskStatus, DEFAULT_DEVICES } from './types';
 import TaskCard from './components/TaskCard';
 import TaskForm from './components/TaskForm';
@@ -6,6 +6,9 @@ import ConfirmModal from './components/ConfirmModal';
 import { PlusIcon, SettingsIcon, DownloadIcon, UploadIcon, XIcon, TrashIcon, EditIcon, CheckIcon } from './components/Icons';
 
 const App: React.FC = () => {
+  // Helper to get today's date key (YYYY-MM-DD format is safe for comparison)
+  const getTodayDateString = () => new Date().toLocaleDateString('en-CA');
+
   // Local Persistence with Error Handling
   const [tasks, setTasks] = useState<Task[]>(() => {
     try {
@@ -61,6 +64,61 @@ const App: React.FC = () => {
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lastCheckedDateRef = useRef(getTodayDateString());
+
+  // --- Daily Reset Logic ---
+  const checkAndResetTasks = useCallback(() => {
+    const today = getTodayDateString();
+    const lastReset = localStorage.getItem('dailyflow_last_reset');
+
+    if (lastReset !== today) {
+      console.log('New day detected. Resetting tasks...');
+      
+      // Update tasks status
+      setTasks(prevTasks => {
+        const needsReset = prevTasks.some(t => t.status !== TaskStatus.PENDING);
+        if (!needsReset && lastReset) return prevTasks; // No changes needed if already all pending (and not first run)
+
+        return prevTasks.map(t => ({
+          ...t,
+          status: TaskStatus.PENDING
+        }));
+      });
+
+      // Update storage
+      localStorage.setItem('dailyflow_last_reset', today);
+      lastCheckedDateRef.current = today;
+    }
+  }, []);
+
+  // Initial check on mount
+  useEffect(() => {
+    checkAndResetTasks();
+  }, [checkAndResetTasks]);
+
+  // Periodic check (every minute) and on visibility change
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+       const today = getTodayDateString();
+       if (today !== lastCheckedDateRef.current) {
+         checkAndResetTasks();
+       }
+    }, 60000); // Check every minute
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkAndResetTasks();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [checkAndResetTasks]);
+
 
   // Sync to localStorage
   useEffect(() => {
