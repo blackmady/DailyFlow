@@ -1,0 +1,5 @@
+{
+  "name": "DailyFlow - 智能每日任务",
+  "description": "一个由 AI 驱动的每日任务管理应用。支持智能填充任务详情，可视化任务统计，以及多设备、多应用的任务追踪。",
+  "requestFramePermissions": []
+}
