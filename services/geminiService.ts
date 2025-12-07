@@ -1,9 +1,6 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { TaskSuggestion } from "../types";
 
-// Initialize Gemini API
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 const suggestionSchema: Schema = {
   type: Type.OBJECT,
   properties: {
@@ -33,6 +30,11 @@ const suggestionSchema: Schema = {
 
 export const generateTaskSuggestion = async (input: string): Promise<TaskSuggestion> => {
   try {
+    // Initialize Gemini API lazily (inside the function)
+    // This prevents the application from crashing on startup if the API key is invalid or missing.
+    // The error will now only occur if the user actually clicks the AI button.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
     const model = "gemini-2.5-flash";
     const prompt = `
       User Input: "${input}"
